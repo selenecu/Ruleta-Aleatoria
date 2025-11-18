@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteo Amigo Secreto</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        .animate-bounce {
+            animation: bounce 1s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-red-500 via-pink-500 to-purple-600 p-4 flex items-center justify-center">
+    <div id="app" class="max-w-2xl w-full"></div>
+
+    <script>
+        const state = {
+            etapa: 'inicio',
+            participantes: [''],
+            asignaciones: {},
+            nombreBuscar: '',
+            amigoRevelado: null,
+            girando: false,
+            anguloRuleta: 0,
+            linkGenerado: ''
+        };
+
+        // Verificar si hay datos en la URL
+        function cargarDesdeURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const datos = urlParams.get('data');
+
+if (datos) {
+    try {
+        const base64 = decodeURIComponent(datos);
+        const asignacionesDecodificadas = JSON.parse(atob(base64));
+        state.asignaciones = asignacionesDecodificadas;
+        state.etapa = 'revelar';
+        return true;
+    } catch (e) {
+        console.error('Error al decodificar datos:', e);
+    }
+}
+
+            return false;
+        }
+
+      function generarLink() {
+    const datosString = JSON.stringify(state.asignaciones);
+    const base64 = btoa(datosString);
+    const seguro = encodeURIComponent(base64);
+
+    let baseURL = window.location.href.split("?")[0];
+
+    // Si es archivo local, forzamos una URL remota
+    if (baseURL.startsWith("file://")) {
+        baseURL = "https://tusorteo.vercel.app";
+    }
+
+    state.linkGenerado = `${baseURL}?data=${seguro}`;
+}
+
+
+
+        function copiarLink() {
+            navigator.clipboard.writeText(state.linkGenerado).then(() => {
+                alert('¡Link copiado al portapapeles! 📋');
+            }).catch(() => {
+                // Fallback para navegadores que no soportan clipboard API
+                const textarea = document.createElement('textarea');
+                textarea.value = state.linkGenerado;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('¡Link copiado! 📋');
+            });
+        }
+
+        function compartirWhatsApp() {
+            const mensaje = `🎁 ¡Participa en nuestro Amigo Secreto!\n\nEntra a este link y pon tu nombre para descubrir quién es tu amigo secreto:\n\n${state.linkGenerado}`;
+            const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+            window.open(url, '_blank');
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            
+            if (state.etapa === 'inicio') {
+                app.innerHTML = `
+                    <div class="bg-white rounded-3xl shadow-2xl p-8 transform transition-all">
+                        <div class="text-center mb-8">
+                            <svg class="w-16 h-16 mx-auto text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+                            </svg>
+                            <h1 class="text-4xl font-bold text-gray-800 mb-2">Amigo Secreto</h1>
+                            <p class="text-gray-600">Ingresa los nombres de todos los participantes</p>
+                        </div>
+                        
+                        <div class="space-y-3 mb-6 max-h-96 overflow-y-auto" id="participantes-list">
+                            ${state.participantes.map((nombre, index) => `
+                                <div class="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value="${nombre}"
+                                        data-index="${index}"
+                                        onchange="actualizarParticipante(${index}, this.value)"
+                                        placeholder="Participante ${index + 1}"
+                                        class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:outline-none text-lg"
+                                    />
+                                    ${state.participantes.length > 1 ? `
+                                        <button
+                                            onclick="eliminarParticipante(${index})"
+                                            class="px-3 py-3 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button
+                                onclick="agregarParticipante()"
+                                class="flex-1 px-6 py-4 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition flex items-center justify-center gap-2"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                Agregar participante
+                            </button>
+                            
+                            <button
+                                onclick="sortearAmigoSecreto()"
+                                class="flex-1 px-6 py-4 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-semibold hover:from-pink-600 hover:to-purple-700 transition flex items-center justify-center gap-2"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                                </svg>
+                                Sortear
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (state.etapa === 'ruleta') {
+                app.innerHTML = `
+                    <div class="bg-white rounded-3xl shadow-2xl p-8 text-center">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-8">¡Sorteando!</h2>
+                        
+                        <div class="relative w-64 h-64 mx-auto mb-8">
+                            <div
+                                id="ruleta"
+                                class="absolute inset-0 rounded-full border-8 border-pink-500 flex items-center justify-center bg-gradient-to-br from-red-400 to-pink-600"
+                                style="transform: rotate(${state.anguloRuleta}deg); transition: none;"
+                            >
+                                <svg class="w-24 h-24 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+                                </svg>
+                            </div>
+                            <div class="absolute -top-8 left-1/2 transform -translate-x-1/2">
+                                <div class="w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-yellow-500"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center justify-center gap-2 text-xl text-gray-600">
+                            <svg class="w-6 h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                            </svg>
+                            <span>Mezclando nombres...</span>
+                        </div>
+                    </div>
+                `;
+            } else if (state.etapa === 'link') {
+                app.innerHTML = `
+                    <div class="bg-white rounded-3xl shadow-2xl p-8">
+                        <div class="text-center mb-8">
+                            <svg class="w-16 h-16 mx-auto text-green-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <h2 class="text-3xl font-bold text-gray-800 mb-2">¡Sorteo Completado!</h2>
+                            <p class="text-gray-600">Comparte este link con todos los participantes</p>
+                        </div>
+
+                        <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 mb-6">
+                            <p class="text-sm text-gray-600 mb-3 text-center">📱 Link para compartir:</p>
+                            <div class="bg-white rounded-xl p-4 break-all text-sm text-gray-700 border-2 border-blue-200">
+                                ${state.linkGenerado}
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <button
+                                onclick="compartirWhatsApp()"
+                                class="w-full px-6 py-4 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition flex items-center justify-center gap-2"
+                            >
+                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                                </svg>
+                                Compartir por WhatsApp
+                            </button>
+
+                            <button
+                                onclick="copiarLink()"
+                                class="w-full px-6 py-4 bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-600 transition flex items-center justify-center gap-2"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
+                                </svg>
+                                Copiar Link
+                            </button>
+
+                            <button
+                                onclick="verResultados()"
+                                class="w-full px-6 py-4 bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-600 transition flex items-center justify-center gap-2"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                Ver mi amigo secreto
+                            </button>
+                        </div>
+
+                        <button
+                            onclick="reiniciar()"
+                            class="w-full mt-6 px-6 py-3 bg-red-100 text-red-600 rounded-xl font-semibold hover:bg-red-200 transition"
+                        >
+                            Nuevo sorteo
+                        </button>
+                    </div>
+                `;
+            } else if (state.etapa === 'revelar') {
+                app.innerHTML = `
+                    <div class="bg-white rounded-3xl shadow-2xl p-8">
+                        <div class="text-center mb-8">
+                            <svg class="w-16 h-16 mx-auto text-purple-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                            <h2 class="text-3xl font-bold text-gray-800 mb-2">Descubre tu Amigo Secreto</h2>
+                            <p class="text-gray-600">Ingresa tu nombre para ver a quién le darás el regalo</p>
+                        </div>
+
+                        ${!state.amigoRevelado ? `
+                            <div class="space-y-4">
+                                <input
+                                    type="text"
+                                    id="nombre-buscar"
+                                    value="${state.nombreBuscar}"
+                                    oninput="state.nombreBuscar = this.value"
+                                    onkeypress="if(event.key === 'Enter') buscarAmigoSecreto()"
+                                    placeholder="Escribe tu nombre"
+                                    class="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none text-lg"
+                                    autofocus
+                                />
+                                
+                                <button
+                                    onclick="buscarAmigoSecreto()"
+                                    class="w-full px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:from-purple-600 hover:to-pink-600 transition flex items-center justify-center gap-2"
+                                >
+                                    Revelar mi amigo secreto
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="space-y-6">
+                                <div class="bg-gradient-to-r from-pink-100 to-purple-100 rounded-2xl p-8 text-center">
+                                    <p class="text-lg text-gray-700 mb-4">🎁 Tu amigo secreto es:</p>
+                                    <p class="text-4xl font-bold text-purple-600 mb-4">${state.amigoRevelado}</p>
+                                    <svg class="w-16 h-16 mx-auto text-pink-500 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"></path>
+                                    </svg>
+                                    <p class="text-sm text-gray-600 mt-4">¡Prepara un regalo especial! 🎅</p>
+                                </div>
+
+                                <button
+                                    onclick="otroParticipante()"
+                                    class="w-full px-6 py-4 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition"
+                                >
+                                    ← Volver (otro participante)
+                                </button>
+                            </div>
+                        `}
+                    </div>
+                `;
+            }
+        }
+
+        function agregarParticipante() {
+            state.participantes.push('');
+            render();
+        }
+
+        function eliminarParticipante(index) {
+            state.participantes = state.participantes.filter((_, i) => i !== index);
+            if (state.participantes.length === 0) {
+                state.participantes = [''];
+            }
+            render();
+        }
+
+        function actualizarParticipante(index, valor) {
+            state.participantes[index] = valor;
+        }
+
+        function sortearAmigoSecreto() {
+            const nombresValidos = state.participantes.filter(n => n.trim() !== '');
+            
+            if (nombresValidos.length < 2) {
+                alert('Necesitas al menos 2 participantes para el sorteo');
+                return;
+            }
+
+            state.girando = true;
+            state.etapa = 'ruleta';
+            render();
+            
+            const duracion = 3000;
+            const rotaciones = 5 + Math.random() * 3;
+            const anguloFinal = rotaciones * 360;
+            
+            let inicio = null;
+            function animar(timestamp) {
+                if (!inicio) inicio = timestamp;
+                const progreso = timestamp - inicio;
+                const porcentaje = Math.min(progreso / duracion, 1);
+                
+                const ease = 1 - Math.pow(1 - porcentaje, 3);
+                state.anguloRuleta = ease * anguloFinal;
+                
+                const ruleta = document.getElementById('ruleta');
+                if (ruleta) {
+                    ruleta.style.transform = `rotate(${state.anguloRuleta}deg)`;
+                }
+                
+                if (progreso < duracion) {
+                    requestAnimationFrame(animar);
+                } else {
+                    realizarSorteo(nombresValidos);
+                    setTimeout(() => {
+                        state.girando = false;
+                        generarLink();
+                        state.etapa = 'link';
+                        render();
+                    }, 500);
+                }
+            }
+            
+            requestAnimationFrame(animar);
+        }
+
+        function realizarSorteo(nombres) {
+            const receptores = [...nombres];
+            const asignacionesNuevas = {};
+            
+            for (let i = 0; i < nombres.length; i++) {
+                const dador = nombres[i];
+                let posiblesReceptores = receptores.filter(r => r !== dador);
+                
+                if (posiblesReceptores.length === 0) {
+                    return realizarSorteo(nombres);
+                }
+                
+                if (receptores.length === 2) {
+                    const ultimoReceptor = receptores.find(r => r !== dador);
+                    asignacionesNuevas[dador] = ultimoReceptor;
+                    receptores.splice(receptores.indexOf(ultimoReceptor), 1);
+                } else {
+                    const indiceAleatorio = Math.floor(Math.random() * posiblesReceptores.length);
+                    const receptor = posiblesReceptores[indiceAleatorio];
+                    asignacionesNuevas[dador] = receptor;
+                    receptores.splice(receptores.indexOf(receptor), 1);
+                }
+            }
+            
+            state.asignaciones = asignacionesNuevas;
+        }
+
+        function buscarAmigoSecreto() {
+            const nombreLimpio = state.nombreBuscar.trim();
+            if (state.asignaciones[nombreLimpio]) {
+                state.amigoRevelado = state.asignaciones[nombreLimpio];
+                render();
+            } else {
+                alert('Nombre no encontrado. Verifica que esté escrito exactamente como fue ingresado en el sorteo.');
+            }
+        }
+
+        function otroParticipante() {
+            state.nombreBuscar = '';
+            state.amigoRevelado = null;
+            render();
+        }
+
+        function verResultados() {
+            state.etapa = 'revelar';
+            state.nombreBuscar = '';
+            state.amigoRevelado = null;
+            render();
+        }
+
+        function reiniciar() {
+            // Limpiar la URL
+            window.history.pushState({}, '', window.location.pathname);
+            
+            state.etapa = 'inicio';
+            state.participantes = [''];
+            state.asignaciones = {};
+            state.nombreBuscar = '';
+            state.amigoRevelado = null;
+            state.anguloRuleta = 0;
+            state.linkGenerado = '';
+            render();
+        }
+
+        // Inicializar la aplicación
+        if (!cargarDesdeURL()) {
+            render();
+        } else {
+            render();
+        }
+    </script>
+</body>
+</html>
