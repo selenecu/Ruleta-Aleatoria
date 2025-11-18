@@ -57,20 +57,21 @@ if (datos) {
             return false;
         }
 
-      function generarLink() {
+function generarLink() {
     const datosString = JSON.stringify(state.asignaciones);
     const base64 = btoa(datosString);
     const seguro = encodeURIComponent(base64);
 
-    let baseURL = window.location.href.split("?")[0];
+    let baseURL = window.location.origin + window.location.pathname;
 
-    // Si es archivo local, forzamos una URL remota
+    // Si estás en local, reemplaza por tu dominio público
     if (baseURL.startsWith("file://")) {
         baseURL = "https://tusorteo.vercel.app";
     }
 
     state.linkGenerado = `${baseURL}?data=${seguro}`;
 }
+
 
 
 
