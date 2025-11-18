@@ -114,13 +114,14 @@ function generarLink() {
                             ${state.participantes.map((nombre, index) => `
                                 <div class="flex gap-2">
                                     <input
-                                        type="text"
-                                        value="${nombre}"
-                                        data-index="${index}"
-                                        onchange="actualizarParticipante(${index}, this.value)"
-                                        placeholder="Participante ${index + 1}"
-                                        class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:outline-none text-lg"
-                                    />
+    type="text"
+    value="${nombre}"
+    data-index="${index}"
+    oninput="this.value = this.value.toUpperCase(); actualizarParticipante(${index}, this.value)"
+    placeholder="PARTICIPANTE ${index + 1}"
+    class="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-pink-500 focus:outline-none text-lg uppercase"
+/>
+
                                     ${state.participantes.length > 1 ? `
                                         <button
                                             onclick="eliminarParticipante(${index})"
@@ -259,15 +260,16 @@ function generarLink() {
                         ${!state.amigoRevelado ? `
                             <div class="space-y-4">
                                 <input
-                                    type="text"
-                                    id="nombre-buscar"
-                                    value="${state.nombreBuscar}"
-                                    oninput="state.nombreBuscar = this.value"
-                                    onkeypress="if(event.key === 'Enter') buscarAmigoSecreto()"
-                                    placeholder="Escribe tu nombre"
-                                    class="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none text-lg"
-                                    autofocus
-                                />
+    type="text"
+    id="nombre-buscar"
+    value="${state.nombreBuscar}"
+    oninput="this.value = this.value.toUpperCase(); state.nombreBuscar = this.value"
+    onkeypress="if(event.key === 'Enter') buscarAmigoSecreto()"
+    placeholder="ESCRIBE TU NOMBRE"
+    class="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none text-lg uppercase"
+    autofocus
+/>
+
                                 
                                 <button
                                     onclick="buscarAmigoSecreto()"
@@ -282,6 +284,7 @@ function generarLink() {
                         ` : `
                             <div class="space-y-6">
                                 <div class="bg-gradient-to-r from-pink-100 to-purple-100 rounded-2xl p-8 text-center">
+                                    <p class="text-4xl font-bold text-purple-600 mb-4">${state.nombreBuscar}</p>
                                     <p class="text-lg text-gray-700 mb-4">🎁 Tu amigo secreto es:</p>
                                     <p class="text-4xl font-bold text-purple-600 mb-4">${state.amigoRevelado}</p>
                                     <svg class="w-16 h-16 mx-auto text-pink-500 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
